@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -46,9 +47,6 @@ def attention(x: torch.Tensor, layer_weights: LayerWeights, model_params, cur_po
     xq = torch.permute(xq, (0, 2, 1, 3))  # (bs, n_heads, seqlen, head_dim)
     keys = torch.permute(keys, (0, 2, 3, 1))  # (bs, n_heads, head_dim, cache_len + seqlen)
     values = torch.permute(values, (0, 2, 1, 3))  # (bs, n_heads, cache_len + seqlen, head_dim)
-    xq = xq.to(torch.bfloat16)
-    #print(values)
-    values = values.to(torch.float32)
     scores = torch.matmul(xq, keys)
     pre_scores = scores / math.sqrt(model_params.head_dim)
     scores = pre_scores.to(torch.float32)  # Always do attention softmax at float32
@@ -59,8 +57,6 @@ def attention(x: torch.Tensor, layer_weights: LayerWeights, model_params, cur_po
     scores = F.softmax(padded_logits, dim=-1).to(torch.float32)
     output = torch.matmul(scores, values)
     output = output.transpose(1, 2).reshape(xq.shape[0], xq.shape[2], -1)
-    #print(output)
-    output=output.to(layer_weights.wo.dtype)
     out = F.linear(output, layer_weights.wo)
     return out, kvcache, pre_scores
 
